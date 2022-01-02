@@ -27,7 +27,7 @@ import org.apache.lucene.store.DataOutput;
 // If bitsPerValue <= 8 then we pack 8 ints per long
 // else if bitsPerValue <= 16 we pack 4 ints per long
 // else we pack 2 ints per long
-final class ForUtil {
+class ForUtil {
 
   static final int BLOCK_SIZE = 128;
   private static final int BLOCK_SIZE_LOG2 = 7;
@@ -56,7 +56,7 @@ final class ForUtil {
     return expandMask8((1L << bitsPerValue) - 1);
   }
 
-  private static void expand8(long[] arr) {
+  static void expand8(long[] arr) {
     for (int i = 0; i < 16; ++i) {
       long l = arr[i];
       arr[i] = (l >>> 56) & 0xFFL;
@@ -220,7 +220,7 @@ final class ForUtil {
     arr[63] += arr[62];
   }
 
-  private static void readLELongs(DataInput in, long[] dst, int offset, int length)
+  static void readLELongs(DataInput in, long[] dst, int offset, int length)
       throws IOException {
     in.readLongs(dst, offset, length);
     for (int i = 0; i < length; ++i) {
@@ -347,7 +347,7 @@ final class ForUtil {
    * The pattern that this shiftLongs method applies is recognized by the C2 compiler, which
    * generates SIMD instructions for it in order to shift multiple longs at once.
    */
-  private static void shiftLongs(long[] a, int count, long[] b, int bi, int shift, long mask) {
+  static void shiftLongs(long[] a, int count, long[] b, int bi, int shift, long mask) {
     for (int i = 0; i < count; ++i) {
       b[bi + i] = (a[i] >>> shift) & mask;
     }
@@ -370,9 +370,9 @@ final class ForUtil {
   }
   // mark values in array as final longs to avoid the cost of reading array, arrays should only be
   // used when the idx is a variable
-  private static final long MASK8_1 = MASKS8[1];
-  private static final long MASK8_2 = MASKS8[2];
-  private static final long MASK8_3 = MASKS8[3];
+   static final long MASK8_1 = MASKS8[1];
+   static final long MASK8_2 = MASKS8[2];
+   static final long MASK8_3 = MASKS8[3];
   private static final long MASK8_4 = MASKS8[4];
   private static final long MASK8_5 = MASKS8[5];
   private static final long MASK8_6 = MASKS8[6];
@@ -640,7 +640,7 @@ final class ForUtil {
     shiftLongs(tmp, 2, longs, 14, 0, MASK8_1);
   }
 
-  private static void decode2(DataInput in, long[] tmp, long[] longs) throws IOException {
+  static void decode2(DataInput in, long[] tmp, long[] longs) throws IOException {
     readLELongs(in, tmp, 0, 4);
     shiftLongs(tmp, 4, longs, 0, 6, MASK8_2);
     shiftLongs(tmp, 4, longs, 4, 4, MASK8_2);
@@ -648,7 +648,7 @@ final class ForUtil {
     shiftLongs(tmp, 4, longs, 12, 0, MASK8_2);
   }
 
-  private static void decode3(DataInput in, long[] tmp, long[] longs) throws IOException {
+  static void decode3(DataInput in, long[] tmp, long[] longs) throws IOException {
     readLELongs(in, tmp, 0, 6);
     shiftLongs(tmp, 6, longs, 0, 5, MASK8_3);
     shiftLongs(tmp, 6, longs, 6, 2, MASK8_3);

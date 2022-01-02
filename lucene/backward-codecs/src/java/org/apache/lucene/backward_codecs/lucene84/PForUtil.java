@@ -24,6 +24,7 @@ import org.apache.lucene.util.packed.PackedInts;
 
 /** Utility class to encode sequences of 128 small positive integers. */
 public final class PForUtil {
+  public static final boolean enableMln = true;
 
   static boolean allEqual(long[] l) {
     for (int i = 1; i < ForUtil.BLOCK_SIZE; ++i) {
@@ -42,6 +43,15 @@ public final class PForUtil {
 
   /** Encode 128 integers from {@code longs} into {@code out}. */
   void encode(long[] longs, DataOutput out) throws IOException {
+    // TODO 转换逻辑压缩
+    long[][] decodeTable = null;
+    MLN mln = null;
+    if (enableMln){
+      mln = new MLN();
+      long[] mlnOut = new long[128];
+      decodeTable = MLN.encode(longs, mlnOut);
+    }
+
     // At most 7 exceptions
     final long[] top8 = new long[8];
     Arrays.fill(top8, -1L);
@@ -49,7 +59,7 @@ public final class PForUtil {
       if (longs[i] > top8[0]) {
         top8[0] = longs[i];
         Arrays.sort(
-            top8); // For only 8 entries we just sort on every iteration instead of maintaining a PQ
+                top8); // For only 8 entries we just sort on every iteration instead of maintaining a PQ
       }
     }
 
@@ -77,17 +87,34 @@ public final class PForUtil {
       assert exceptionCount == numExceptions : exceptionCount + " " + numExceptions;
     }
 
+    // TODO 所有值都一样的情况
     if (allEqual(longs) && maxBitsRequired <= 8) {
       for (int i = 0; i < numExceptions; ++i) {
         exceptions[2 * i + 1] =
-            (byte) (Byte.toUnsignedLong(exceptions[2 * i + 1]) << patchedBitsRequired);
+                (byte) (Byte.toUnsignedLong(exceptions[2 * i + 1]) << patchedBitsRequired);
       }
       out.writeByte((byte) (numExceptions << 5));
+      // TODO 此处填写解压矩阵的大小
+      if (enableMln) {
+        out.writeByte((byte) 3);
+      }
       out.writeVLong(longs[0]);
+
+      // TODO 有差异的情况
     } else {
       final int token = (numExceptions << 5) | patchedBitsRequired;
       out.writeByte((byte) token);
+      // TODO 此处填写解压矩阵的大小
+      if(enableMln) {
+        out.writeByte((byte) 3);
+      }
+
       forUtil.encode(longs, patchedBitsRequired, out);
+      // TODO 此处写入解压矩阵
+      if(enableMln){
+        mln.encode(decodeTable, 3, out);
+      }
+
     }
     out.writeBytes(exceptions, exceptions.length);
   }
@@ -97,6 +124,10 @@ public final class PForUtil {
     final int token = Byte.toUnsignedInt(in.readByte());
     final int bitsPerValue = token & 0x1f;
     final int numExceptions = token >>> 5;
+    // TODO 读取转换矩阵的大小
+    if (enableMln) {
+      final int size = Byte.toUnsignedInt(in.readByte());
+    }
     if (bitsPerValue == 0) {
       Arrays.fill(longs, 0, ForUtil.BLOCK_SIZE, in.readVLong());
     } else {
@@ -104,8 +135,21 @@ public final class PForUtil {
     }
     for (int i = 0; i < numExceptions; ++i) {
       longs[Byte.toUnsignedInt(in.readByte())] |=
-          Byte.toUnsignedLong(in.readByte()) << bitsPerValue;
+              Byte.toUnsignedLong(in.readByte()) << bitsPerValue;
     }
+    // TODO 读取解压矩阵 将longs 转换为原始值
+    if (enableMln) {
+      MLN mln = new MLN();
+      long[][] decoTable = new long[8][8];
+      mln.decode(3, in, decoTable);
+      long[] out = new long[128];
+      MLN.decode(longs, out, decoTable);
+
+      for (int i = 0; i < out.length; i++) {
+        longs[i] = out[i];
+      }
+    }
+
   }
 
   /** Skip 128 integers. */
@@ -113,11 +157,20 @@ public final class PForUtil {
     final int token = Byte.toUnsignedInt(in.readByte());
     final int bitsPerValue = token & 0x1f;
     final int numExceptions = token >>> 5;
+    // TODO 读取转换矩阵的大小
+    if(enableMln){
+      final int size = Byte.toUnsignedInt(in.readByte());
+    }
+    // log2N * N * N
     if (bitsPerValue == 0) {
       in.readVLong();
       in.skipBytes((numExceptions << 1));
     } else {
       in.skipBytes(forUtil.numBytes(bitsPerValue) + (numExceptions << 1));
+      // TODO 读取解压矩阵
+      if (enableMln) {
+        in.skipBytes(24);
+      }
     }
   }
 }
