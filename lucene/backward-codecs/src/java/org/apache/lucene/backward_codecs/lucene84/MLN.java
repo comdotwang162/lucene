@@ -11,19 +11,19 @@ public class MLN extends ForUtil{
     private final long[] tmp = new long[BLOCK_SIZE / 2];
     public static long[][] generateCompTab(long[] in){
         int size = in.length;
-        long[][] freqTable = new long[size][size];
+        long[][] freqTable = new long[8][8];
         for(int i = 0; i< size -1; ++i){
             long current = in[i];
             long next = in[i+1];
             if (current <= MAX_V && next <= MAX_V){
-                freqTable[(int)current][(int)next] += 1;
+                freqTable[(int)current - 1][(int)next - 1] += 1;
             }
         }
-        long[][] encodeTable  = new long[size][size];
+        long[][] encodeTable  = new long[8][8];
         for(int i = 0; i< freqTable.length; i++){
             long[] freqRow = freqTable[i];
             int[] idx = arraySort(freqRow);
-            for(int j = 0; j < size; j++){
+            for(int j = 0; j < 8; j++){
                 encodeTable[i][idx[j]] = j + 1;
             }
         }
@@ -59,7 +59,10 @@ public class MLN extends ForUtil{
         long[][] decomTable = new long[encodeTabel.length][encodeTabel.length];
         for(int i = 0; i< encodeTabel.length; i++){
             for (int j = 0; j < encodeTabel.length; j++){
-                decomTable[i][(int)encodeTabel[i][j] - 1] = j+1;
+                //decomTable[i][(int)encodeTabel[i][j] - 1] = j+1;
+
+                //为了节省存储 减一
+                decomTable[i][(int)encodeTabel[i][j] - 1] = j;
             }
         }
         return decomTable;
@@ -67,14 +70,17 @@ public class MLN extends ForUtil{
 
 
     public static long[][] encode(long[] in, long[] out){
+        for (int i = 0; i< in.length; i++){
+            in[i] += 1;
+        }
         long[][] encodeTable = generateCompTab(in);
         int size = in.length;
         out[0] = in[0];
         for (int i = 1; i< size; i++){
-            long prev = in[i];
-            long current = in[i+1];
+            long prev = in[i-1];
+            long current = in[i];
             if (prev <= MAX_V && current <= MAX_V){
-                out[i] = encodeTable[(int)prev][(int)current];
+                out[i] = encodeTable[(int)prev - 1][(int)current - 1];
             }else {
                 out[i] = in[i];
             }
@@ -85,31 +91,32 @@ public class MLN extends ForUtil{
     public static void decode(long[] in, long[] out, long[][]decodeTable){
         out[0] = in[0];
         long pre = out[0];
-        for (int i = 1; i< decodeTable.length; i++){
+        for (int i = 1; i< in.length; i++){
             long current = in[i];
             if (pre <= MAX_V && current <= MAX_V){
-                out[i] = decodeTable[(int)pre - 1][(int)current - 1];
+                //out[i] = decodeTable[(int)pre - 1][(int)current - 1];
+                // 为了节省存储 加回来
+                out[i] = decodeTable[(int)pre - 1][(int)current - 1] + 1;
             }else {
                 out[i] = in[i];
             }
             pre = out[i];
         }
+        for (int i = 0 ;i<out.length;i++){
+            out[i] -= 1;
+        }
+
     }
 
 
     /** Encode 128 integers from {@code longs} into {@code out}. */
     void encode(long[][] decodTable, int bitsPerValue, DataOutput out) throws IOException {
-
         long[] longs = new long[64];
         int x = 0;
         for (int i = 0;i<8; i++){
             for (int j= 0 ;j<8;j++){
                 longs[x++]= decodTable[i][j];
             }
-        }
-
-        for (int i = 0; i< longs.length; i++){
-            longs[i] = longs[i] - 1;
         }
 
         final int nextPrimitive;
@@ -237,7 +244,7 @@ public class MLN extends ForUtil{
         decode3(in, tmp, longs);
         expand8(longs);
         for (int i = 0;i < 64;i++){
-            decodeTable[i/8][i] = longs[i];
+            decodeTable[i/8][i%8] = longs[i];
         }
 
     }

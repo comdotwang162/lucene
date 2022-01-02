@@ -50,6 +50,7 @@ public final class PForUtil {
       mln = new MLN();
       long[] mlnOut = new long[128];
       decodeTable = MLN.encode(longs, mlnOut);
+      longs = mlnOut;
     }
 
     // At most 7 exceptions
@@ -99,7 +100,7 @@ public final class PForUtil {
         out.writeByte((byte) 3);
       }
       out.writeVLong(longs[0]);
-
+      out.writeBytes(exceptions, exceptions.length);
       // TODO 有差异的情况
     } else {
       final int token = (numExceptions << 5) | patchedBitsRequired;
@@ -110,13 +111,13 @@ public final class PForUtil {
       }
 
       forUtil.encode(longs, patchedBitsRequired, out);
+      out.writeBytes(exceptions, exceptions.length);
       // TODO 此处写入解压矩阵
       if(enableMln){
         mln.encode(decodeTable, 3, out);
       }
 
     }
-    out.writeBytes(exceptions, exceptions.length);
   }
 
   /** Decode 128 integers into {@code ints}. */
@@ -129,7 +130,7 @@ public final class PForUtil {
       final int size = Byte.toUnsignedInt(in.readByte());
     }
     if (bitsPerValue == 0) {
-      Arrays.fill(longs, 0, ForUtil.BLOCK_SIZE, in.readVLong());
+      Arrays.fill(longs, 0, ForUtil.BLOCK_SIZE, in.readVLong()-1);
     } else {
       forUtil.decode(bitsPerValue, in, longs);
     }
@@ -137,16 +138,18 @@ public final class PForUtil {
       longs[Byte.toUnsignedInt(in.readByte())] |=
               Byte.toUnsignedLong(in.readByte()) << bitsPerValue;
     }
-    // TODO 读取解压矩阵 将longs 转换为原始值
-    if (enableMln) {
-      MLN mln = new MLN();
-      long[][] decoTable = new long[8][8];
-      mln.decode(3, in, decoTable);
-      long[] out = new long[128];
-      MLN.decode(longs, out, decoTable);
+    if (bitsPerValue > 0 ){
+      // TODO 读取解压矩阵 将longs 转换为原始值
+      if (enableMln) {
+        MLN mln = new MLN();
+        long[][] decoTable = new long[8][8];
+        mln.decode(3, in, decoTable);
+        long[] out = new long[128];
+        MLN.decode(longs, out, decoTable);
 
-      for (int i = 0; i < out.length; i++) {
-        longs[i] = out[i];
+        for (int i = 0; i < out.length; i++) {
+          longs[i] = out[i];
+        }
       }
     }
 
