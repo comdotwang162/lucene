@@ -1,0 +1,4 @@
+org.apache.lucene.TestDemo=9135,9097,9057,9104,9071,9493,9135
+org.apache.lucene.TestSearch=938,922,938,913
+org.apache.lucene.codecs.lucene84.TestPForUtil=656,672,648,657,656,649,656,656
+org.apache.lucene.demo.TestDemo=1499,1226,1789

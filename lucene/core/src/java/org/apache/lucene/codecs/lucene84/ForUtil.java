@@ -28,7 +28,7 @@ import org.apache.lucene.store.DataOutput;
 // If bitsPerValue <= 8 then we pack 8 ints per long
 // else if bitsPerValue <= 16 we pack 4 ints per long
 // else we pack 2 ints per long
-final class ForUtil {
+class ForUtil {
 
   static final int BLOCK_SIZE = 128;
   private static final int BLOCK_SIZE_LOG2 = 7;
@@ -335,15 +335,15 @@ final class ForUtil {
    * compiler, which generates SIMD instructions for it in order to shift
    * multiple longs at once.
    */
-  private static void shiftLongs(long[] a, int count, long[] b, int bi, int shift, long mask) {
+  static void shiftLongs(long[] a, int count, long[] b, int bi, int shift, long mask) {
     for (int i = 0; i < count; ++i) {
       b[bi+i] = (a[i] >>> shift) & mask;
     }
   }
 
-  private static final long MASK8_1 = mask8(1);
-  private static final long MASK8_2 = mask8(2);
-  private static final long MASK8_3 = mask8(3);
+   static final long MASK8_1 = mask8(1);
+   static final long MASK8_2 = mask8(2);
+   static final long MASK8_3 = mask8(3);
   private static final long MASK8_4 = mask8(4);
   private static final long MASK8_5 = mask8(5);
   private static final long MASK8_6 = mask8(6);

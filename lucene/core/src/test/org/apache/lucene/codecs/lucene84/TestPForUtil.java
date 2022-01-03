@@ -34,6 +34,7 @@ import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 public class TestPForUtil extends LuceneTestCase {
 
   public void testEncodeDecode() throws IOException {
+    System.out.println("hello word 123 456 789");
     final int iterations = RandomNumbers.randomIntBetween(random(), 50, 1000);
     final int[] values = new int[iterations * ForUtil.BLOCK_SIZE];
 

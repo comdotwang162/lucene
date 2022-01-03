@@ -36,7 +36,7 @@ final class PForUtil {
     }
     return true;
   }
-
+  public static final boolean enableMln = true;
   private final ForUtil forUtil;
 
   PForUtil(ForUtil forUtil) {
@@ -47,6 +47,15 @@ final class PForUtil {
    * Encode 128 integers from {@code longs} into {@code out}.
    */
   void encode(long[] longs, DataOutput out) throws IOException {
+    // TODO 转换逻辑压缩
+    long[][] decodeTable = null;
+    MLN mln = null;
+    if (enableMln){
+      mln = new MLN();
+      long[] mlnOut = new long[128];
+      decodeTable = MLN.encode(longs, mlnOut);
+      longs = mlnOut;
+    }
     // At most 3 exceptions
     final long[] top4 = new long[4];
     Arrays.fill(top4, -1L);
@@ -86,13 +95,27 @@ final class PForUtil {
         exceptions[2*i + 1] = (byte) (Byte.toUnsignedLong(exceptions[2*i + 1]) << patchedBitsRequired);
       }
       out.writeByte((byte) (numExceptions << 5));
+      // TODO 此处填写解压矩阵的大小
+      if (enableMln) {
+        out.writeByte((byte) 3);
+      }
       out.writeVLong(longs[0]);
+      out.writeBytes(exceptions, exceptions.length);
     } else {
       final int token = (numExceptions << 5) | patchedBitsRequired;
       out.writeByte((byte) token);
+      // TODO 此处填写解压矩阵的大小
+      if(enableMln) {
+        out.writeByte((byte) 3);
+      }
       forUtil.encode(longs, patchedBitsRequired, out);
+      out.writeBytes(exceptions, exceptions.length);
+      // TODO 此处写入解压矩阵
+      if(enableMln){
+        mln.encode(decodeTable, 3, out);
+      }
     }
-    out.writeBytes(exceptions, exceptions.length);
+
   }
 
   /**
@@ -102,13 +125,31 @@ final class PForUtil {
     final int token = Byte.toUnsignedInt(in.readByte());
     final int bitsPerValue = token & 0x1f;
     final int numExceptions = token >>> 5;
+    // TODO 读取转换矩阵的大小
+    if (enableMln) {
+      final int size = Byte.toUnsignedInt(in.readByte());
+    }
     if (bitsPerValue == 0) {
-      Arrays.fill(longs, 0, ForUtil.BLOCK_SIZE, in.readVLong());
+      Arrays.fill(longs, 0, ForUtil.BLOCK_SIZE, in.readVLong() - 1);
     } else {
       forUtil.decode(bitsPerValue, in, longs);
     }
     for (int i = 0; i < numExceptions; ++i) {
       longs[Byte.toUnsignedInt(in.readByte())] |= Byte.toUnsignedLong(in.readByte()) << bitsPerValue;
+    }
+    if (bitsPerValue > 0 ){
+      // TODO 读取解压矩阵 将longs 转换为原始值
+      if (enableMln) {
+        MLN mln = new MLN();
+        long[][] decoTable = new long[8][8];
+        mln.decode(3, in, decoTable);
+        long[] out = new long[128];
+        MLN.decode(longs, out, decoTable);
+
+        for (int i = 0; i < out.length; i++) {
+          longs[i] = out[i];
+        }
+      }
     }
   }
 
@@ -119,11 +160,19 @@ final class PForUtil {
     final int token = Byte.toUnsignedInt(in.readByte());
     final int bitsPerValue = token & 0x1f;
     final int numExceptions = token >>> 5;
+    // TODO 读取转换矩阵的大小
+    if(enableMln){
+      final int size = Byte.toUnsignedInt(in.readByte());
+    }
     if (bitsPerValue == 0) {
       in.readVLong();
       in.skipBytes((numExceptions << 1));
     } else {
       in.skipBytes(forUtil.numBytes(bitsPerValue) + (numExceptions << 1));
+      // TODO 读取解压矩阵
+      if (enableMln) {
+        in.skipBytes(24);
+      }
     }
   }
 
